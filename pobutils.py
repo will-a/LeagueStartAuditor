@@ -12,8 +12,8 @@ BUILD_CODE_PATHS = {
     'pobb.in': 'https://pobb.in/:id:/raw',
     'pastebin.com': 'https://pastebin.com/raw/:id:'
 }
-OFFENSIVE_MISC_STATS = [
-    'AverageHit',
+DISPLAY_STATS = [
+    'AverageDamage',
     'Speed',
     'CritChance',
     'CritMultiplier',
@@ -23,9 +23,7 @@ OFFENSIVE_MISC_STATS = [
     'Str',
     'PowerChargesMax',
     'FrenzyChargesMax',
-    'EnduranceChargesMax'
-]
-DEFENSIVE_STATS = [
+    'EnduranceChargesMax',
     'TotalEHP',
     'Life',
     'Armour',
@@ -82,8 +80,7 @@ def get_stats_from_xml(root: ET.Element) -> tuple:
         'level': stats_root.attrib['level'],
         'class': stats_root.attrib.get('ascendClassName', stats_root.attrib['className'])
     }
-    offensive_misc_stats = {}
-    defensive_stats = {}
+    display_stats = {}
     for stat in stats_root:
         if stat.tag != 'PlayerStat':
             if stat.tag == 'FullDPSSkill':
@@ -93,13 +90,9 @@ def get_stats_from_xml(root: ET.Element) -> tuple:
             continue
         stat_name = stat.attrib['stat']
         stat_value = stat.attrib['value']
-        if stat_name in OFFENSIVE_MISC_STATS:
-            offensive_misc_stats[stat_name] = float(stat_value)
-            if stat_name == 'CritMultiplier':
-                offensive_misc_stats[stat_name] *= 100
-        if stat_name in DEFENSIVE_STATS:
-            defensive_stats[stat_name] = float(stat_value)
-    return character, offensive_misc_stats, defensive_stats
+        if stat_name in DISPLAY_STATS:
+            display_stats[stat_name] = float(stat_value)
+    return character, display_stats
 
 
 if __name__ == '__main__':

@@ -81,14 +81,37 @@ def update_page_with_new_build(pob_input: str):
         else:
             price_breakdown.append(html.Tr([html.Td([item]), html.Td(['did not exist'])]))
     
-    character, offensive_misc_stats, defensive_stats = get_stats_from_xml(pob_xml)
+    character, display_stats = get_stats_from_xml(pob_xml)
     character_level_ascendancy = [f"Level {character.get('level')} {character.get('class')}"]
     offensive_misc_stats_table = []
     defensive_stats_table = []
-    for stat, value in offensive_misc_stats.items():
-        offensive_misc_stats_table.append(html.Tr([html.Td([stat]), html.Td([round(value)])]))
-    for stat, value in defensive_stats.items():
-        defensive_stats_table.append(html.Tr([html.Td([stat]), html.Td([round(value)])]))
+    
+    offensive_misc_stats_table.append(html.Tr([html.Td(['Average Hit: {:0,.0f}'.format(display_stats.get('AverageDamage', 0))])]))
+    offensive_misc_stats_table.append(html.Tr([html.Td(['Total DPS: {:0,.0f}'.format(display_stats.get('CombinedDPS', 0))])]))
+    offensive_misc_stats_table.append(html.Tr([html.Td(['Speed: {:0,.2f}'.format(display_stats.get('Speed', 0))])]))
+    offensive_misc_stats_table.append(html.Tr([html.Td(['Crit Chance: {:0.0f}%'.format(display_stats.get('CritChance', 0))])]))
+    offensive_misc_stats_table.append(html.Tr([html.Td(['Crit Multiplier: {:0.0f}%'.format(display_stats.get('CritMultiplier', 0) * 100)])]))
+    offensive_misc_stats_table.append(html.Tr([html.Td(['Attributes: ', 
+                                                        html.Span('{:0.0f}'.format(display_stats.get('Dex', 0)), style={'color': 'green'}), '/', 
+                                                        html.Span('{:0.0f}'.format(display_stats.get('Int', 0)), style={'color': 'blue'}), '/',
+                                                        html.Span('{:0.0f}'.format(display_stats.get('Str', 0)), style={'color': 'red'})])]))
+    offensive_misc_stats_table.append(html.Tr([html.Td(['Charges: ', 
+                                                        html.Span('{:0.0f}'.format(display_stats.get('PowerChargesMax', 0)), style={'color': 'blue'}), '/', 
+                                                        html.Span('{:0.0f}'.format(display_stats.get('FrenzyChargesMax', 0)), style={'color': 'green'}), '/',
+                                                        html.Span('{:0.0f}'.format(display_stats.get('EnduranceChargesMax', 0)), style={'color': 'red'})])]))
+    
+    defensive_stats_table.append(html.Tr([html.Td(['Total EHP: {:0,.0f}'.format(display_stats.get('TotalEHP', 0))])]))
+    defensive_stats_table.append(html.Tr([html.Td(['Life: {:0,.0f}'.format(display_stats.get('Life', 0))])]))
+    defensive_stats_table.append(html.Tr([html.Td(['Energy Shield: {:0,.0f}'.format(display_stats.get('EnergyShield', 0))])]))
+    defensive_stats_table.append(html.Tr([html.Td(['Armor: {:0,.0f}'.format(display_stats.get('Armour', 0))])]))
+    defensive_stats_table.append(html.Tr([html.Td(['Evasion: {:0,.0f}'.format(display_stats.get('Evasion', 0))])]))
+    defensive_stats_table.append(html.Tr([html.Td(['Resistances: ', 
+                                                        html.Span('{:0.0f}%'.format(display_stats.get('FireResist', 0)), style={'color': 'orange'}), '/', 
+                                                        html.Span('{:0.0f}%'.format(display_stats.get('ColdResist', 0)), style={'color': 'blue'}), '/',
+                                                        html.Span('{:0.0f}%'.format(display_stats.get('LightningResist', 0)), style={'color': 'yellow'}), '/', 
+                                                        html.Span('{:0.0f}%'.format(display_stats.get('ChaosResist', 0)), style={'color': 'purple'})])]))
+    defensive_stats_table.append(html.Tr([html.Td(['Spell Suppression: {:0,.0f}%'.format(display_stats.get('SpellSuppressionChance', 0))])]))
+
 
     return build_uniques, build_uniques[0], price_breakdown, [f"Total cost: {total_cost:0.0f} chaos"], character_level_ascendancy, offensive_misc_stats_table, defensive_stats_table
 
