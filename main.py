@@ -87,13 +87,15 @@ def update_link_dropdown(item_name: str):
 )
 def update_price_graph(selected_item: str, selected_links: str):
     filtered_data = data.loc[(data['Name'] == selected_item) & (data['Links'] == selected_links)]
+    unique_ids = filtered_data['Id'].unique()
+    item_data = []
+
+    for item_id in unique_ids:
+        id_x_data = filtered_data.loc[filtered_data['Id'] == item_id]
+        id_y_data = filtered_data.loc[filtered_data['Id'] == item_id]
+        item_data.append({'x': id_x_data['Date'], 'y': id_y_data['Value']})
     figure = {
-        'data': [
-            {
-                'x': filtered_data['Date'],
-                'y': filtered_data['Value']
-            }
-        ]
+        'data': item_data
     }
 
     return figure
