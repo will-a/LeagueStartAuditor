@@ -2,6 +2,7 @@ import re
 import zlib
 import base64
 import logging
+import binascii
 import requests
 from typing import Optional
 import xml.etree.ElementTree as ET
@@ -51,9 +52,17 @@ def get_pob_code_from_url(url: str) -> Optional[str]:
 
 
 def read_pob_to_xml(pob_code: str) -> ET.Element:
-    decoded = base64.urlsafe_b64decode(pob_code)
-    decompressed = zlib.decompress(decoded)
-    return ET.fromstring(decompressed)
+    if not pob_code:
+        return None
+    try:
+        decoded = base64.urlsafe_b64decode(pob_code)
+        decompressed = zlib.decompress(decoded)
+    except zlib.error:
+        return None
+    except binascii.Error:
+        return None
+    else:
+        return ET.fromstring(decompressed)
 
 
 def get_uniques_from_xml(root: ET.Element) -> list:

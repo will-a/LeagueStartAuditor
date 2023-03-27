@@ -23,14 +23,14 @@ app = Dash(__name__)
 app.layout = html.Div([
     html.H1("League Start Auditor", className='py-3'),
     html.Div([
-        dcc.Input(id='pob_url', placeholder="Pastebin/pobb.in Link", type='text', className='form-control'),
+        dcc.Input(id='pob_input', placeholder="Pastebin/pobb.in Link", type='text', className='form-control'),
     ], className='input-group input-group-lg'),
     html.Br(),
     html.Div([
         html.H3(id='character_level_ascendancy'),
         html.Div([
-            html.Table(id='offensive_misc_stats_table', className='col'),
-            html.Table(id='defensive_stats_table', className='col'),
+            html.Table(id='offensive_misc_stats_table', className='col-4'),
+            html.Table(id='defensive_stats_table', className='col-4'),
         ], className='row p-3', style={'margin': 'auto'})
     ]),
     html.Br(),
@@ -58,13 +58,16 @@ app.layout = html.Div([
     Output('character_level_ascendancy', 'children'),
     Output('offensive_misc_stats_table', 'children'),
     Output('defensive_stats_table', 'children'),
-    Input('pob_url', 'value')
+    Input('pob_input', 'value')
 )
-def update_page_with_new_build(pob_url: str):
-    pob_code = get_pob_code_from_url(pob_url)
+def update_page_with_new_build(pob_input: str):
+    pob_code = get_pob_code_from_url(pob_input)
     if not pob_code:
-        return [], None, [], [], [], [], []
-    pob_xml = read_pob_to_xml(pob_code)
+        pob_xml = read_pob_to_xml(pob_input)
+        if not pob_xml:
+            return [], None, [], [], [], [], []
+    else:
+        pob_xml = read_pob_to_xml(pob_code)
 
     build_uniques = get_uniques_from_xml(pob_xml)
     total_cost = 0
