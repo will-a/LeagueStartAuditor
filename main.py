@@ -3,7 +3,7 @@ from dash import Dash, html, dcc, Input, Output
 import dash_bootstrap_components as dbc
 import logging
 
-from pobutils import get_pob_code_from_url, get_uniques_from_pob_code
+from pobutils import read_pob_to_xml, get_pob_code_from_url, get_stats_from_xml, get_uniques_from_xml
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,6 +25,15 @@ app.layout = html.Div([
     html.Div([
         dcc.Input(id='pob_url', placeholder="Pastebin/pobb.in Link", type='text', className='form-control'),
     ], className='input-group input-group-lg'),
+    html.Br(),
+    html.Div([
+        html.H3(id='character_level_ascendancy'),
+        html.Div([
+            html.Table(id='offensive_misc_stats_table', className='col'),
+            html.Table(id='defensive_stats_table', className='col'),
+        ], className='row p-3', style={'margin': 'auto'})
+    ]),
+    html.Br(),
     html.Div([
         html.Table(id='price_breakdown', children=[''], className='col-8'),
         html.H3(id='total_cost', className='col')
@@ -46,14 +55,18 @@ app.layout = html.Div([
     Output('item_dropdown', 'value'),
     Output('price_breakdown', 'children'),
     Output('total_cost', 'children'),
+    Output('character_level_ascendancy', 'children'),
+    Output('offensive_misc_stats_table', 'children'),
+    Output('defensive_stats_table', 'children'),
     Input('pob_url', 'value')
 )
 def update_page_with_new_build(pob_url: str):
     pob_code = get_pob_code_from_url(pob_url)
     if not pob_code:
-        return [], None, [], []
-    build_uniques = get_uniques_from_pob_code(pob_code)
+        return [], None, [], [], [], [], []
+    pob_xml = read_pob_to_xml(pob_code)
 
+    build_uniques = get_uniques_from_xml(pob_xml)
     total_cost = 0
     price_breakdown = [html.Tr([html.Th(['Item']), html.Th(['First price (chaos)']), html.Th(['First seen'])])]
     for item in build_uniques:
@@ -64,8 +77,17 @@ def update_page_with_new_build(pob_url: str):
             total_cost += first_price.iloc[0]
         else:
             price_breakdown.append(html.Tr([html.Td([item]), html.Td(['did not exist'])]))
+    
+    character, offensive_misc_stats, defensive_stats = get_stats_from_xml(pob_xml)
+    character_level_ascendancy = [f"Level {character.get('level')} {character.get('class')}"]
+    offensive_misc_stats_table = []
+    defensive_stats_table = []
+    for stat, value in offensive_misc_stats.items():
+        offensive_misc_stats_table.append(html.Tr([html.Td([stat]), html.Td([round(value)])]))
+    for stat, value in defensive_stats.items():
+        defensive_stats_table.append(html.Tr([html.Td([stat]), html.Td([round(value)])]))
 
-    return build_uniques, build_uniques[0], price_breakdown, [f"Total cost: {total_cost:0.0f} chaos"]
+    return build_uniques, build_uniques[0], price_breakdown, [f"Total cost: {total_cost:0.0f} chaos"], character_level_ascendancy, offensive_misc_stats_table, defensive_stats_table
 
 
 @app.callback(
