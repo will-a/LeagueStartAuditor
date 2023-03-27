@@ -34,8 +34,8 @@ def read_pob_to_xml(pob_code: str) -> ET.Element:
 
 def get_uniques_from_xml(root: ET.Element) -> list:
     items_xml = root.find('Items')
-    unique = re.compile(r'^Rarity: UNIQUE\n(?P<item_name>[\w ]+)\n')
-    
+    unique = re.compile(r'^Rarity: UNIQUE\n(?P<item_name>[\w \']+)\n')
+
     return [unique_match.group('item_name') for item in items_xml if item.tag == 'Item' and (unique_match := unique.match(item.text.strip()))]
 
 
@@ -44,4 +44,4 @@ def get_uniques_from_pob_code(pob_code: str) -> list:
     return get_uniques_from_xml(pob_xml)
 
 
-# print(get_uniques_from_xml(read_pob_to_xml(get_pob_code_from_url('https://pobb.in/BL70qYjBEzI8'))))
+# print(get_uniques_from_pob_code(get_pob_code_from_url('https://pastebin.com/FEG9g37F')))

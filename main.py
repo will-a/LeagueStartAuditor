@@ -1,12 +1,18 @@
 import pandas as pd
 from dash import Dash, html, dcc, Input, Output
 import dash_bootstrap_components as dbc
+import logging
 
 from pobutils import get_pob_code_from_url, get_uniques_from_pob_code
 
+logging.basicConfig(level=logging.INFO)
+
 
 def load_data(file_name: str) -> pd.DataFrame:
-    return pd.read_csv(file_name, delimiter=';', parse_dates=['Date'])
+    try:
+        return pd.read_csv(file_name, delimiter=';', parse_dates=['Date'])
+    except FileNotFoundError:
+        return pd.DataFrame()
 
 
 data = load_data('data/Kalandra/Kalandra.items.csv')
@@ -17,7 +23,7 @@ app = Dash(__name__)
 app.layout = html.Div([
     html.H1("League Start Auditor", className='py-3'),
     html.Div([
-        dcc.Input(id='pob_url', placeholder="Paste pob", type='text', className='form-control'),
+        dcc.Input(id='pob_url', placeholder="Pastebin/pobb.in Link", type='text', className='form-control'),
     ], className='input-group input-group-lg'),
     html.Div([
         html.Table(id='price_breakdown', children=[''], className='col-8'),
@@ -49,7 +55,7 @@ def update_page_with_new_build(pob_url: str):
     build_uniques = get_uniques_from_pob_code(pob_code)
 
     total_cost = 0
-    price_breakdown = [html.Tr([html.Td(['Item']), html.Td(['First price (chaos)']), html.Td(['First seen'])])]
+    price_breakdown = [html.Tr([html.Th(['Item']), html.Th(['First price (chaos)']), html.Th(['First seen'])])]
     for item in build_uniques:
         first_price = round(data.loc[(data['Name'] == item), 'Value'])
         first_date = data.loc[(data['Name'] == item), 'Date']
