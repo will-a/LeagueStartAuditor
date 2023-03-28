@@ -13,6 +13,7 @@ BUILD_CODE_PATHS = {
     'pastebin.com': 'https://pastebin.com/raw/:id:'
 }
 DISPLAY_STATS = [
+    'AverageHit',
     'AverageDamage',
     'Speed',
     'CritChance',

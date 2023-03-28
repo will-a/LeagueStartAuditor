@@ -98,7 +98,7 @@ def update_page_with_new_build(pob_input: str):
     offensive_misc_stats_table = []
     defensive_stats_table = []
     
-    offensive_misc_stats_table.append(html.Tr([html.Td(['Average Hit: {:0,.0f}'.format(display_stats.get('AverageDamage', 0))])]))
+    offensive_misc_stats_table.append(html.Tr([html.Td(['Average Hit: {:0,.0f}'.format(display_stats.get('AverageDamage', display_stats.get('AverageHit', 0)))])]))
     offensive_misc_stats_table.append(html.Tr([html.Td(['Total DPS: {:0,.0f}'.format(display_stats.get('CombinedDPS', 0))])]))
     offensive_misc_stats_table.append(html.Tr([html.Td(['Speed: {:0,.2f}'.format(display_stats.get('Speed', 0))])]))
     offensive_misc_stats_table.append(html.Tr([html.Td(['Crit Chance: {:0.0f}%'.format(display_stats.get('CritChance', 0))])]))
