@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from dash import Dash, html, dcc, Input, Output
 import dash_bootstrap_components as dbc
 import logging
@@ -16,7 +17,7 @@ def load_data(file_name: str) -> pd.DataFrame:
 
 
 data = load_data('data/Kalandra/Kalandra.items.csv')
-data['Date'] = data['Date'].dt.date
+# data['Date'] = data['Date'].dt.date
 data['Links'].fillna('None', inplace=True)
 app = Dash(__name__)
 
@@ -31,12 +32,16 @@ app.layout = html.Div([
         html.Div([
             html.Table(id='offensive_misc_stats_table', className='col-4'),
             html.Table(id='defensive_stats_table', className='col-4'),
+            html.Table(id='dps_stats', className='col-4')
         ], className='row p-3', style={'margin': 'auto'})
     ]),
     html.Br(),
     html.Div([
-        html.Table(id='price_breakdown', children=[''], className='col-8'),
-        html.H3(id='total_cost', className='col')
+        html.Table(id='price_breakdown', children=[''], className='col-9'),
+        html.Div([
+            html.H4(['Total cost:']),
+            html.H4(id='total_cost')
+        ], className='col')
     ], className='row p-3', style={'margin': 'auto'}),
     html.Div([
         dbc.Container([
@@ -58,6 +63,7 @@ app.layout = html.Div([
     Output('character_level_ascendancy', 'children'),
     Output('offensive_misc_stats_table', 'children'),
     Output('defensive_stats_table', 'children'),
+    Output('dps_stats', 'children'),
     Input('pob_input', 'value')
 )
 def update_page_with_new_build(pob_input: str):
@@ -65,22 +71,28 @@ def update_page_with_new_build(pob_input: str):
     if not pob_code:
         pob_xml = read_pob_to_xml(pob_input)
         if not pob_xml:
-            return [], None, [], [], [], [], []
+            return [], None, [], [], [], [], [], []
     else:
         pob_xml = read_pob_to_xml(pob_code)
 
     build_uniques = get_uniques_from_xml(pob_xml)
     total_cost = 0
-    price_breakdown = [html.Tr([html.Th(['Item']), html.Th(['First price (chaos)']), html.Th(['First seen'])])]
+    price_breakdown = [html.Tr([html.Th(['Item']), html.Th(['First price']), html.Th(['First seen']), html.Th(['Week 1 Price'])])]
     for item in build_uniques:
-        first_price = round(data.loc[(data['Name'] == item), 'Value'])
-        first_date = data.loc[(data['Name'] == item), 'Date']
-        if first_price.size > 0:
-            price_breakdown.append(html.Tr([html.Td([item]), html.Td([first_price.iloc[0], ' chaos']), html.Td([first_date.iloc[0]])]))
-            total_cost += first_price.iloc[0]
+        item_values = data.loc[(data['Name'] == item)]
+        first_date_df = data.loc[(data['Name'] == item), 'Date']
+        if first_date_df.size > 0:
+            first_date = first_date_df.iloc[0]
+            first_price = round(item_values['Value'].iloc[0])
+            week1_price = round(item_values.loc[item_values['Date'] == first_date + np.timedelta64(7, 'D'), 'Value'].iloc[0])
+            week1_pct_change = (week1_price - first_price) / first_price * 100
+            price_breakdown.append(html.Tr([html.Td([item]), html.Td([first_price, ' chaos']), html.Td([first_date.strftime('%x')]), html.Td([week1_price, ' chaos (', '{:+0.0f}'.format(week1_pct_change), '%)'])]))
         else:
-            price_breakdown.append(html.Tr([html.Td([item]), html.Td(['did not exist'])]))
-    
+            first_price = 0
+            price_breakdown.append(html.Tr([html.Td([item]), html.Td(['No data']), html.Td([]), html.Td([])]))
+
+        total_cost += first_price
+
     character, display_stats = get_stats_from_xml(pob_xml)
     character_level_ascendancy = [f"Level {character.get('level')} {character.get('class')}"]
     offensive_misc_stats_table = []
@@ -112,8 +124,9 @@ def update_page_with_new_build(pob_input: str):
                                                         html.Span('{:0.0f}%'.format(display_stats.get('ChaosResist', 0)), style={'color': 'purple'})])]))
     defensive_stats_table.append(html.Tr([html.Td(['Spell Suppression: {:0,.0f}%'.format(display_stats.get('SpellSuppressionChance', 0))])]))
 
+    dps_stats = [html.Tr([html.Td([ability[0]]), html.Td(['{:0,.0f}'.format(ability[1])])]) for ability in character.get('FullDPSSkill', [])]
 
-    return build_uniques, build_uniques[0], price_breakdown, [f"Total cost: {total_cost:0.0f} chaos"], character_level_ascendancy, offensive_misc_stats_table, defensive_stats_table
+    return build_uniques, build_uniques[0], price_breakdown, [f"{total_cost:0.0f} chaos"], character_level_ascendancy, offensive_misc_stats_table, defensive_stats_table, dps_stats
 
 
 @app.callback(

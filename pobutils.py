@@ -86,7 +86,7 @@ def get_stats_from_xml(root: ET.Element) -> tuple:
             if stat.tag == 'FullDPSSkill':
                 if 'FullDPSSkill' not in character:
                     character['FullDPSSkill'] = []
-                character['FullDPSSkill'].append({stat.attrib['stat']: stat.attrib['value']})
+                character['FullDPSSkill'].append((stat.attrib['stat'], float(stat.attrib['value'])))
             continue
         stat_name = stat.attrib['stat']
         stat_value = stat.attrib['value']
