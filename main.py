@@ -17,7 +17,6 @@ def load_data(file_name: str) -> pd.DataFrame:
 
 
 data = load_data('data/Kalandra/Kalandra.items.csv')
-# data['Date'] = data['Date'].dt.date
 data['Links'].fillna('None', inplace=True)
 app = Dash(__name__)
 
@@ -26,32 +25,27 @@ app.layout = html.Div([
     html.Div([
         dcc.Input(id='pob_input', placeholder="Pastebin/pobb.in Link", type='text', className='form-control'),
     ], className='input-group input-group-lg'),
-    html.Br(),
     html.Div([
-        html.H3(id='character_level_ascendancy'),
+        html.H3(id='character_level_ascendancy', className='mt-4'),
         html.Div([
             html.Table(id='offensive_misc_stats_table', className='col-4'),
             html.Table(id='defensive_stats_table', className='col-4'),
-            html.Table(id='dps_stats', className='col-4')
-        ], className='row p-3', style={'margin': 'auto'})
+            html.Div(id='dps_stats', className='col-4')
+        ], className='row align-items-start p-3', style={'margin': 'auto'})
     ]),
-    html.Br(),
     html.Div([
         html.Table(id='price_breakdown', children=[''], className='col-9'),
-        html.Div([
-            html.H4(['Total cost:']),
-            html.H4(id='total_cost')
-        ], className='col')
+        html.Div(id='total_cost', className='col')
     ], className='row p-3', style={'margin': 'auto'}),
     html.Div([
         dbc.Container([
             dbc.Row([
-                dbc.Col(dcc.Dropdown(id='item_dropdown')),
-                dbc.Col(dcc.Dropdown(id='link_dropdown'))
+                dbc.Col(dcc.Dropdown(id='item_dropdown', style={'display': 'none'})),
+                dbc.Col(dcc.Dropdown(id='link_dropdown', style={'display': 'none'}))
             ])
         ])
     ]),
-    dcc.Graph(id='price_graph')
+    dcc.Graph(id='price_graph', style={'display': 'none'})
 ], className='m-5 px-5')
 
 
@@ -76,7 +70,8 @@ def update_page_with_new_build(pob_input: str):
         pob_xml = read_pob_to_xml(pob_code)
 
     build_uniques = get_uniques_from_xml(pob_xml)
-    total_cost = 0
+
+    total_cost_chaos = 0
     price_breakdown = [html.Tr([html.Th(['Item']), html.Th(['First price']), html.Th(['First seen']), html.Th(['Week 1 Price'])])]
     for item in build_uniques:
         item_values = data.loc[(data['Name'] == item)]
@@ -91,7 +86,12 @@ def update_page_with_new_build(pob_input: str):
             first_price = 0
             price_breakdown.append(html.Tr([html.Td([item]), html.Td(['No data']), html.Td([]), html.Td([])]))
 
-        total_cost += first_price
+        total_cost_chaos += first_price
+    
+    total_cost = [
+        html.H4(['Total cost:']),
+        html.H4(['{:0,.0f} chaos'.format(total_cost_chaos)])
+    ]
 
     character, display_stats = get_stats_from_xml(pob_xml)
     character_level_ascendancy = [f"Level {character.get('level')} {character.get('class')}"]
@@ -124,9 +124,9 @@ def update_page_with_new_build(pob_input: str):
                                                         html.Span('{:0.0f}%'.format(display_stats.get('ChaosResist', 0)), style={'color': 'purple'})])]))
     defensive_stats_table.append(html.Tr([html.Td(['Spell Suppression: {:0,.0f}%'.format(display_stats.get('SpellSuppressionChance', 0))])]))
 
-    dps_stats = [html.Tr([html.Td([ability[0]]), html.Td(['{:0,.0f}'.format(ability[1])])]) for ability in character.get('FullDPSSkill', [])]
+    dps_stats = [html.P([ability[0], ': {:0,.0f}'.format(ability[1])], className='mb-2') for ability in character.get('FullDPSSkill', [])]
 
-    return build_uniques, build_uniques[0], price_breakdown, [f"{total_cost:0.0f} chaos"], character_level_ascendancy, offensive_misc_stats_table, defensive_stats_table, dps_stats
+    return build_uniques, build_uniques[0], price_breakdown, total_cost, character_level_ascendancy, offensive_misc_stats_table, defensive_stats_table, dps_stats
 
 
 @app.callback(
@@ -155,11 +155,35 @@ def update_price_graph(selected_item: str, selected_links: str):
         id_x_data = filtered_data.loc[filtered_data['Id'] == item_id]
         id_y_data = filtered_data.loc[filtered_data['Id'] == item_id]
         item_data.append({'x': id_x_data['Date'], 'y': id_y_data['Value']})
+
     figure = {
         'data': item_data
     }
 
     return figure
+
+
+@app.callback(
+    Output('price_graph', 'style'),
+    Output('item_dropdown', 'style'),
+    Output('link_dropdown', 'style'),
+    Input('price_graph', 'figure'),
+    Input('item_dropdown', 'options'),
+    Input('link_dropdown', 'options')
+)
+def update_visibility(price_graph_figure: dict, item_dropdown_options: list, link_dropdown_options: list):
+    price_graph_style = {'display': 'block'}
+    item_dropdown_style = {'display': 'block'}
+    link_dropdown_style = {'display': 'block'}
+
+    if not price_graph_figure.get('data', []):
+        price_graph_style = {'display': 'none'}
+    if not item_dropdown_options:
+        item_dropdown_style = {'display': 'none'}
+    if not item_dropdown_options:
+        link_dropdown_style = {'display': 'none'}
+    
+    return price_graph_style, item_dropdown_style, link_dropdown_style
 
 
 if __name__ == '__main__':
