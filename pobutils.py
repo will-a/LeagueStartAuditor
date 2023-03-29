@@ -1,9 +1,12 @@
 import re
+import json
 import zlib
 import base64
 import logging
 import binascii
 import requests
+import numpy as np
+import pandas as pd
 from typing import Optional
 import xml.etree.ElementTree as ET
 
@@ -73,6 +76,15 @@ def get_uniques_from_xml(root: ET.Element) -> list:
     return [unique_match.group('item_name') for item in items_xml if item.tag == 'Item' and (unique_match := unique.match(item.text.strip()))]
 
 
+def get_clusters_from_xml(root: ET.Element) -> list:
+    items_xml = root.find('Items')
+    if not items_xml:
+        return []
+    cluster = re.compile(r'^Rarity: \w+\s+[\w ]+\s+(?P<cluster_size>[\w ]+)\s+(Unique ID: [\w\d]+\s+)?Item Level: (?P<item_level>\d+)\s+LevelReq: \d+\s+Implicits: \d\s+{crafted}Adds (?P<num_passives>\d) Passive Skills\s+{crafted}[\w\d ]+\s+{crafted}Added Small Passive Skills grant: (?P<cluster_type>[\w% \d]+)')
+
+    return [{'cluster_size': cluster_match.group('cluster_size'), 'num_passives': cluster_match.group('num_passives'), 'cluster_type': cluster_match.group('cluster_type'), 'item_level': float(cluster_match.group('item_level'))} for item in items_xml if item.tag == 'Item' and (cluster_match := cluster.match(item.text.strip()))]
+
+
 def get_stats_from_xml(root: ET.Element) -> tuple:
     stats_root = root.find('Build')
     if not stats_root:
@@ -96,6 +108,31 @@ def get_stats_from_xml(root: ET.Element) -> tuple:
     return character, display_stats
 
 
+def process_cluster_ids(file_name: str) -> dict:
+    try:
+        with open(file_name, 'r', encoding='utf-8') as cluster_info_file:
+            cluster_info_dict = json.loads(cluster_info_file.read())
+    except IOError as ioe:
+        logging.error("Could not read file '%s'", file_name)
+        return {}
+    except json.JSONDecodeError as jde:
+        logging.error("Could not decode JSON at '%s'", file_name)
+    
+    cluster_id_df = pd.DataFrame([(cluster.get('id'), cluster.get('levelRequired')) for cluster in cluster_info_dict['lines']], columns=['Id', 'ItemLevel'])
+
+    cluster_id_df.to_csv('data/Kalandra/Kalandra.clusterjewels.ids.csv', index=False)
+
+
+def test(target):
+    l = np.array([1, 50, 68, 84])
+    return l[l<target].max()
+
+
 if __name__ == '__main__':
-    pob_xml = read_pob_to_xml(get_pob_code_from_url('https://pastebin.com/FEG9g37F'))
-    print(get_stats_from_xml(pob_xml))
+    # pob_xml = read_pob_to_xml(get_pob_code_from_url('https://pastebin.com/FEG9g37F'))
+    # pob_xml = read_pob_to_xml(get_pob_code_from_url('https://pobb.in/BL70qYjBEzI8'))
+    # print(get_stats_from_xml(pob_xml))
+    # print(get_clusters_from_xml(pob_xml))
+    # print(pob_xml)
+    # process_cluster_ids('data/Kalandra/Kalandra.clusterjewels.raw.json')
+    print(test(78))
