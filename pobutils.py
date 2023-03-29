@@ -108,24 +108,31 @@ def get_stats_from_xml(root: ET.Element) -> tuple:
     return character, display_stats
 
 
-def process_cluster_ids(file_name: str) -> dict:
+def process_cluster_ids(url: str):
+    # https://poe.ninja/api/data/itemoverview?league=Kalandra&type=ClusterJewel&language=en
+    # try:
+    #     with open(file_name, 'r', encoding='utf-8') as cluster_info_file:
+    #         cluster_info_dict = json.loads(cluster_info_file.read())
+    # except IOError as ioe:
+    #     logging.error("Could not read file '%s'", file_name)
+    #     return {}
+    # except json.JSONDecodeError as jde:
+    #     logging.error("Could not decode JSON at '%s'", file_name)
+
+    resp = requests.get(url)
+
+    if resp.status_code != 200:
+        logging.error("Failed to fetch URL '%s'", url)
+        return
+    
     try:
-        with open(file_name, 'r', encoding='utf-8') as cluster_info_file:
-            cluster_info_dict = json.loads(cluster_info_file.read())
-    except IOError as ioe:
-        logging.error("Could not read file '%s'", file_name)
-        return {}
+        cluster_info_dict = json.loads(resp.text)
     except json.JSONDecodeError as jde:
-        logging.error("Could not decode JSON at '%s'", file_name)
+        logging.error("Could not decode JSON from API request")
     
     cluster_id_df = pd.DataFrame([(cluster.get('id'), cluster.get('levelRequired')) for cluster in cluster_info_dict['lines']], columns=['Id', 'ItemLevel'])
 
     cluster_id_df.to_csv('data/Kalandra/Kalandra.clusterjewels.ids.csv', index=False)
-
-
-def test(target):
-    l = np.array([1, 50, 68, 84])
-    return l[l<target].max()
 
 
 if __name__ == '__main__':
@@ -134,5 +141,4 @@ if __name__ == '__main__':
     # print(get_stats_from_xml(pob_xml))
     # print(get_clusters_from_xml(pob_xml))
     # print(pob_xml)
-    # process_cluster_ids('data/Kalandra/Kalandra.clusterjewels.raw.json')
-    print(test(78))
+    process_cluster_ids('https://poe.ninja/api/data/itemoverview?league=Kalandra&type=ClusterJewel&language=en')
