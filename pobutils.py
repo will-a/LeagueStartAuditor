@@ -53,6 +53,13 @@ class ClusterJewel:
     small_passives: str
 
 
+def load_data(file_name: str) -> pd.DataFrame:
+    try:
+        return pd.read_csv(file_name, delimiter=';', parse_dates=['Date'])
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
 def get_pob_code_from_url(url: str) -> Optional[str]:
     url_r = re.compile(r'(http(s)?:\/\/)?(www.)?(?P<url_base>\w+\.\w+)\/(?P<paste_id>\w+)')
     if not (url and (url_match := url_r.search(url))):
