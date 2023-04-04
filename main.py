@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from dash import Dash, html, dcc, Input, Output
+from dash import Dash, html, dcc, Input, Output, page_registry, page_container
 import dash_bootstrap_components as dbc
 import logging
 
@@ -24,55 +24,21 @@ try:
 except FileNotFoundError as fnfe:
     logging.error("Could not read from item level CSV file")
 
-app = Dash(__name__)
+app = Dash(__name__, use_pages=True)
 
 app.layout = html.Div([
-    html.H1("League Start Auditor", className='py-3'),
-    html.Div([
-        dcc.Input(id='pob_input', placeholder="Pastebin/pobb.in Link", type='text', className='form-control'),
-    ], className='input-group input-group-lg'),
-    html.Div([
-        html.H3(id='character_level_ascendancy', className='mt-4'),
+    html.Nav([
         html.Div([
-            html.Table(id='offensive_misc_stats_table', className='col-4'),
-            html.Table(id='defensive_stats_table', className='col-4'),
-            html.Div(id='dps_stats', className='col-4')
-        ], className='row align-items-start p-3', style={'margin': 'auto'})
-    ]),
-    html.Div([
-        html.H4(['Uniques']),
-        html.Div([
-            html.Table(id='unique_price_breakdown', children=[''], className='col-9'),
-            html.Div(id='unique_total_cost', className='col-3')
-        ], className='row', style={'margin': 'auto'})
-    ], className='p-3', style={'display': 'none'}, id='uniques_panel'),
-    html.Div([
-        dbc.Container([
-            dbc.Row([
-                dbc.Col(dcc.Dropdown(id='unique_dropdown', style={'display': 'none'})),
-                dbc.Col(dcc.Dropdown(id='link_dropdown', style={'display': 'none'}))
-            ])
-        ])
-    ]),
-    dcc.Graph(id='unique_price_graph', style={'display': 'none'}),
-    html.Div([
-        html.H4(['Cluster Jewels']),
-        html.Div([
-            html.Table(id='cluster_price_breakdown', children=[''], className='col-9'),
-            html.Div(id='cluster_total_cost', className='col-3')
-        ], className='row', style={'margin': 'auto'})
-    ], className='p-3', style={'display': 'none'}, id='clusters_panel'),
-    html.Div([
-        dbc.Container([
-            dbc.Row([
-                dbc.Col(dcc.Dropdown(id='cluster_type_dropdown', style={'display': 'none'})),
-                dbc.Col(dcc.Dropdown(id='num_passives_dropdown', style={'display': 'none'})),
-                dbc.Col(dcc.Dropdown(id='item_level_dropdown', style={'display': 'none'}))
-            ])
-        ])
-    ]),
-    dcc.Graph(id='cluster_price_graph', style={'display': 'none'})
-], className='m-5 px-5')
+            html.Ul([
+                html.Li([
+                    html.A([page['name']], className='nav-link', href=page['relative_path'])
+                ], className='nav-item')
+            ], className='navbar-nav')
+        for page in page_registry.values()
+        ], className='collapse navbar-collapse')
+    ], className='navbar navbar-expand-lg mx-3'),
+    page_container
+])
 
 
 @app.callback(
@@ -103,21 +69,24 @@ def update_page_with_new_build(pob_input: str):
     build_clusters = get_clusters_from_xml(pob_xml)
 
     unique_total_cost_chaos = 0
+    unique_dropdown_options = set()
     unique_price_breakdown = [html.Tr([html.Th(['Item']), html.Th(['First price']), html.Th(['First seen']), html.Th(['Week 1 Price'])])]
     for item in build_uniques:
-        item_history = data.loc[(data['Name'] == item)]
-        dates = data.loc[(data['Name'] == item), 'Date']
+        item_history = data.loc[(data['Name'] == item.name)]
+        dates = data.loc[(data['Name'] == item.name), 'Date']
         if dates.size > 0:
             first_date = dates.iloc[0]
             first_price = round(item_history['Value'].iloc[0])
             week1_price = round(item_history.loc[item_history['Date'] == first_date + np.timedelta64(7, 'D'), 'Value'].iloc[0])
             week1_pct_change = (week1_price - first_price) / first_price * 100
-            unique_price_breakdown.append(html.Tr([html.Td([item]), html.Td([first_price, ' chaos']), html.Td([first_date.strftime('%x')]), html.Td([week1_price, ' chaos (', '{:+0.0f}'.format(week1_pct_change), '%)'])]))
+            unique_price_breakdown.append(html.Tr([html.Td([item.name]), html.Td([first_price, ' chaos']), html.Td([first_date.strftime('%x')]), html.Td([week1_price, ' chaos (', '{:+0.0f}'.format(week1_pct_change), '%)'])]))
             unique_total_cost_chaos += first_price
+            unique_dropdown_options.add(item.name)
         else:
-            unique_price_breakdown.append(html.Tr([html.Td([item]), html.Td(['No data']), html.Td([]), html.Td([])]))
+            unique_price_breakdown.append(html.Tr([html.Td([item.name]), html.Td(['No data']), html.Td([]), html.Td([])]))
 
-    build_uniques_default = build_uniques[0] if build_uniques else None
+    unique_dropdown_options = list(unique_dropdown_options) if unique_dropdown_options else None
+    unique_dropdown_default = unique_dropdown_options[0] if build_uniques else None
     if unique_total_cost_chaos > 0:
         unique_total_cost = [
             html.H4(['Total cost:']),
@@ -130,13 +99,13 @@ def update_page_with_new_build(pob_input: str):
     cluster_dropdown_options = set()
     cluster_total_cost_chaos = 0
     for item in build_clusters:
-        item_history = data.loc[(data['BaseType'] == item.get('cluster_size')) & (data['Variant'] == "{} passives".format(item.get('num_passives'))) & (data['Name'].str.startswith(item.get('cluster_type')))]
+        item_history = data.loc[(data['BaseType'] == item.size) & (data['Variant'] == "{} passives".format(item.num_passives)) & (data['Name'] == item.small_passives)]
         cluster_levels = item_history['ItemLevel'].unique()
-        min_ilvl = cluster_levels[cluster_levels < item.get('item_level')].max()
+        min_ilvl = cluster_levels[cluster_levels < item.level].max()
         item_history = item_history.loc[item_history['ItemLevel'] == min_ilvl]
 
-        item_name = '{}, {}, {} passives, Level {:0.0f}'.format(item.get('cluster_type'), item.get('cluster_size'), item.get('num_passives'), min_ilvl)
-        cluster_dropdown_options.add(item.get('cluster_type'))
+        item_name = '{}, {}, {} passives, Level {:0.0f}'.format(item.small_passives, item.size, item.num_passives, min_ilvl)
+        cluster_dropdown_options.add(item.small_passives)
         if item_history.size > 0:
             first_date = item_history['Date'].iloc[0]
             first_price = round(item_history['Value'].iloc[0])
@@ -190,7 +159,7 @@ def update_page_with_new_build(pob_input: str):
 
     dps_stats = [html.P([ability[0], ': {:0,.0f}'.format(ability[1])], className='mb-2') for ability in character.get('FullDPSSkill', [])]
 
-    return build_uniques, build_uniques_default, cluster_dropdown_options, cluster_dropdown_options_default, unique_price_breakdown, cluster_price_breakdown, unique_total_cost, cluster_total_cost, character_level_ascendancy, offensive_misc_stats_table, defensive_stats_table, dps_stats
+    return unique_dropdown_options, unique_dropdown_default, cluster_dropdown_options, cluster_dropdown_options_default, unique_price_breakdown, cluster_price_breakdown, unique_total_cost, cluster_total_cost, character_level_ascendancy, offensive_misc_stats_table, defensive_stats_table, dps_stats
 
 
 @app.callback(
@@ -213,7 +182,7 @@ def update_link_dropdown(item_name: str):
 def update_num_passives_dropdown(cluster_type: str):
     if not cluster_type:
         return [], None
-    options = data.loc[data['Name'].str.startswith(cluster_type), 'Variant'].unique()
+    options = data.loc[data['Name'] == cluster_type, 'Variant'].unique()
     if not options.size > 0:
         return [], None
     return options, options[0]
@@ -227,7 +196,7 @@ def update_num_passives_dropdown(cluster_type: str):
 def update_item_level_dropdown(cluster_type: str):
     if not cluster_type:
         return [], None
-    options = data.loc[data['Name'].str.startswith(cluster_type), 'ItemLevel'].unique()
+    options = data.loc[data['Name'] == cluster_type, 'ItemLevel'].unique()
     if not options.size > 0:
         return [], None
     return options, options[0]
@@ -264,7 +233,7 @@ def update_unique_price_graph(selected_item: str, selected_links: str):
 def update_cluster_price_graph(selected_type: str, selected_num_passives: str, selected_item_level: float):
     if not selected_type or not selected_num_passives or not selected_item_level:
         return {}
-    filtered_data = data.loc[(data['Variant'] == selected_num_passives) & (data['Name'].str.startswith(selected_type)) & (data['ItemLevel'] == selected_item_level)]
+    filtered_data = data.loc[(data['Variant'] == selected_num_passives) & (data['Name'] == selected_type) & (data['ItemLevel'] == selected_item_level)]
 
     figure = {
         'data': [

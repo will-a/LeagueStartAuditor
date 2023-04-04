@@ -8,6 +8,7 @@ import requests
 import numpy as np
 import pandas as pd
 from typing import Optional
+from dataclasses import dataclass
 import xml.etree.ElementTree as ET
 
 logging.basicConfig(level=logging.INFO)
@@ -39,6 +40,18 @@ DISPLAY_STATS = [
     'ChaosResist',
     'SpellSuppressionChance'
 ]
+
+@dataclass
+class UniqueItem:
+    name: str
+
+@dataclass
+class ClusterJewel:
+    size: str
+    level: int
+    num_passives: int
+    small_passives: str
+
 
 def get_pob_code_from_url(url: str) -> Optional[str]:
     url_r = re.compile(r'(http(s)?:\/\/)?(www.)?(?P<url_base>\w+\.\w+)\/(?P<paste_id>\w+)')
@@ -73,16 +86,25 @@ def get_uniques_from_xml(root: ET.Element) -> list:
         return []
     unique = re.compile(r'^Rarity: UNIQUE\n(?P<item_name>[\w \']+)\n')
 
-    return [unique_match.group('item_name') for item in items_xml if item.tag == 'Item' and (unique_match := unique.match(item.text.strip()))]
+    return [UniqueItem(
+            name=unique_match.group('item_name')
+        )
+        for item in items_xml if item.tag == 'Item' and (unique_match := unique.match(item.text.strip()))]
 
 
 def get_clusters_from_xml(root: ET.Element) -> list:
     items_xml = root.find('Items')
     if not items_xml:
         return []
-    cluster = re.compile(r'^Rarity: \w+\s+[\w ]+\s+(?P<cluster_size>[\w ]+)\s+(Unique ID: [\w\d]+\s+)?Item Level: (?P<item_level>\d+)\s+LevelReq: \d+\s+Implicits: \d\s+{crafted}Adds (?P<num_passives>\d) Passive Skills\s+{crafted}[\w\d ]+\s+{crafted}Added Small Passive Skills grant: (?P<cluster_type>[\w% \d]+)')
+    cluster = re.compile(r'^Rarity: \w+\s+[\w ]+\s+(?P<size>[\w ]+)\s+(Unique ID: [\w\d]+\s+)?Item Level: (?P<item_level>\d+)\s+LevelReq: \d+\s+Implicits: \d\s+{crafted}Adds (?P<num_passives>\d) Passive Skills\s+{crafted}[\w\d ]+\s+{crafted}(?P<small_passives>(Added Small Passive Skills grant: [\w% \d]+\n)+)')
 
-    return [{'cluster_size': cluster_match.group('cluster_size'), 'num_passives': cluster_match.group('num_passives'), 'cluster_type': cluster_match.group('cluster_type'), 'item_level': float(cluster_match.group('item_level'))} for item in items_xml if item.tag == 'Item' and (cluster_match := cluster.match(item.text.strip()))]
+    return [ClusterJewel(
+            size=cluster_match.group('size'),
+            num_passives=int(cluster_match.group('num_passives')),
+            level=int(cluster_match.group('item_level')),
+            small_passives=cluster_match.group('small_passives').strip().replace('\n', ', ').replace('Added Small Passive Skills grant: ', '')
+        )
+        for item in items_xml if item.tag == 'Item' and (cluster_match := cluster.match(item.text.strip()))]
 
 
 def get_stats_from_xml(root: ET.Element) -> tuple:
@@ -137,8 +159,8 @@ def process_cluster_ids(url: str):
 
 if __name__ == '__main__':
     # pob_xml = read_pob_to_xml(get_pob_code_from_url('https://pastebin.com/FEG9g37F'))
-    # pob_xml = read_pob_to_xml(get_pob_code_from_url('https://pobb.in/BL70qYjBEzI8'))
+    pob_xml = read_pob_to_xml(get_pob_code_from_url('https://pobb.in/BL70qYjBEzI8'))
     # print(get_stats_from_xml(pob_xml))
-    # print(get_clusters_from_xml(pob_xml))
+    print(get_clusters_from_xml(pob_xml))
     # print(pob_xml)
-    process_cluster_ids('https://poe.ninja/api/data/itemoverview?league=Kalandra&type=ClusterJewel&language=en')
+    # process_cluster_ids('https://poe.ninja/api/data/itemoverview?league=Kalandra&type=ClusterJewel&language=en')
