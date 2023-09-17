@@ -80,8 +80,10 @@ def read_pob_to_xml(pob_code: str) -> ET.Element:
         decoded = base64.urlsafe_b64decode(pob_code)
         decompressed = zlib.decompress(decoded)
     except zlib.error:
+        logging.error("zlib error converting build code to XML")
         return None
     except binascii.Error:
+        logging.error("binascii error converting build code to XML")
         return None
     else:
         return ET.fromstring(decompressed)
@@ -148,6 +150,13 @@ def process_cluster_ids(url: str):
     # except json.JSONDecodeError as jde:
     #     logging.error("Could not decode JSON at '%s'", file_name)
 
+    league_re = re.search("league=(?P<league_name>[A-Za-z]+)", url)
+    
+    if not league_re:
+        logging.error("Couldn't parse league name from URL '%s'", url)
+        return
+
+    league = league_re.group('league_name')
     resp = requests.get(url)
 
     if resp.status_code != 200:
@@ -161,13 +170,13 @@ def process_cluster_ids(url: str):
     
     cluster_id_df = pd.DataFrame([(cluster.get('id'), cluster.get('levelRequired')) for cluster in cluster_info_dict['lines']], columns=['Id', 'ItemLevel'])
 
-    cluster_id_df.to_csv('data/Kalandra/Kalandra.clusterjewels.ids.csv', index=False)
+    cluster_id_df.to_csv(f'data/{league}/{league}.clusterjewels.ids.csv', index=False)
 
 
 if __name__ == '__main__':
     # pob_xml = read_pob_to_xml(get_pob_code_from_url('https://pastebin.com/FEG9g37F'))
-    pob_xml = read_pob_to_xml(get_pob_code_from_url('https://pobb.in/BL70qYjBEzI8'))
+    # pob_xml = read_pob_to_xml(get_pob_code_from_url('https://pobb.in/BL70qYjBEzI8'))
     # print(get_stats_from_xml(pob_xml))
-    print(get_clusters_from_xml(pob_xml))
+    # print(get_clusters_from_xml(pob_xml))
     # print(pob_xml)
-    # process_cluster_ids('https://poe.ninja/api/data/itemoverview?league=Kalandra&type=ClusterJewel&language=en')
+    process_cluster_ids('https://poe.ninja/api/data/itemoverview?league=Ancestor&type=ClusterJewel&language=en')

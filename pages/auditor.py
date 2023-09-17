@@ -1,22 +1,25 @@
 import os
 import logging
+import validators
 import numpy as np
 import pandas as pd
 import dash_bootstrap_components as dbc
 from dash import html, dcc, register_page, callback, Output, Input
 from pobutils import get_pob_code_from_url, read_pob_to_xml, get_uniques_from_xml, get_clusters_from_xml, get_stats_from_xml, load_data
 
+from main import LEAGUE
+
 
 register_page(__name__, path='/')
 
-if not os.path.isfile('data/Kalandra/Kalandra.items.csv'):
+if not os.path.isfile(f'data/{LEAGUE}/{LEAGUE}.items.csv'):
     logging.error("Data file not found, exiting...")
     exit(1)
 
-data = load_data('data/Kalandra/Kalandra.items.csv')
+data = load_data(f'data/{LEAGUE}/{LEAGUE}.items.csv')
 data['Links'].fillna('None', inplace=True)
 try:
-    cluster_item_levels = pd.read_csv('data/Kalandra/Kalandra.clusterjewels.ids.csv')
+    cluster_item_levels = pd.read_csv(f'data/{LEAGUE}/{LEAGUE}.clusterjewels.ids.csv')
     data = data.merge(cluster_item_levels, on='Id', how='left')
 except FileNotFoundError as fnfe:
     logging.error("Could not read from item level CSV file")
@@ -28,47 +31,52 @@ def layout():
     html.Div([
         dcc.Input(id='pob_input', placeholder="Pastebin/pobb.in Link", type='text', className='form-control'),
     ], className='input-group input-group-lg'),
-    html.Div([
-        html.H3(id='character_level_ascendancy', className='mt-4'),
+    dcc.Loading([
         html.Div([
-            html.Table(id='offensive_misc_stats_table', className='col-4'),
-            html.Table(id='defensive_stats_table', className='col-4'),
-            html.Div(id='dps_stats', className='col-4')
-        ], className='row align-items-start p-3', style={'margin': 'auto'})
-    ]),
-    html.Div([
-        html.H4(['Uniques']),
+            html.H4("Could not load build, please ensure the given link or build code is valid", id='error_reading_pob', style={'color': 'red', 'display': 'none'}, className='mt-4')
+        ]),
         html.Div([
-            html.Table(id='unique_price_breakdown', children=[''], className='col-9'),
-            html.Div(id='unique_total_cost', className='col-3')
-        ], className='row', style={'margin': 'auto'})
-    ], className='p-3', style={'display': 'none'}, id='uniques_panel'),
-    html.Div([
-        dbc.Container([
-            dbc.Row([
-                dbc.Col(dcc.Dropdown(id='unique_dropdown', style={'display': 'none'})),
-                dbc.Col(dcc.Dropdown(id='link_dropdown', style={'display': 'none'}))
+            html.H3(id='character_level_ascendancy', className='mt-4'),
+            html.Div([
+                html.Table(id='offensive_misc_stats_table', className='col-4'),
+                html.Table(id='defensive_stats_table', className='col-4'),
+                html.Div(id='dps_stats', className='col-4')
+            ], className='row align-items-start p-3', style={'margin': 'auto'})
+        ]),
+        html.Div([
+            html.H4(['Uniques']),
+            html.Div([
+                html.Table(id='unique_price_breakdown', children=[''], className='col-9'),
+                html.Div(id='unique_total_cost', className='col-3')
+            ], className='row', style={'margin': 'auto'})
+        ], className='p-3', style={'display': 'none'}, id='uniques_panel'),
+        html.Div([
+            dbc.Container([
+                dbc.Row([
+                    dbc.Col(dcc.Dropdown(id='unique_dropdown', style={'display': 'none'})),
+                    dbc.Col(dcc.Dropdown(id='link_dropdown', style={'display': 'none'}))
+                ])
             ])
-        ])
-    ]),
-    dcc.Graph(id='unique_price_graph', style={'display': 'none'}),
-    html.Div([
-        html.H4(['Cluster Jewels']),
+        ]),
+        dcc.Graph(id='unique_price_graph', style={'display': 'none'}),
         html.Div([
-            html.Table(id='cluster_price_breakdown', children=[''], className='col-9'),
-            html.Div(id='cluster_total_cost', className='col-3')
-        ], className='row', style={'margin': 'auto'})
-    ], className='p-3', style={'display': 'none'}, id='clusters_panel'),
-    html.Div([
-        dbc.Container([
-            dbc.Row([
-                dbc.Col(dcc.Dropdown(id='cluster_type_dropdown', style={'display': 'none'})),
-                dbc.Col(dcc.Dropdown(id='num_passives_dropdown', style={'display': 'none'})),
-                dbc.Col(dcc.Dropdown(id='item_level_dropdown', style={'display': 'none'}))
+            html.H4(['Cluster Jewels']),
+            html.Div([
+                html.Table(id='cluster_price_breakdown', children=[''], className='col-9'),
+                html.Div(id='cluster_total_cost', className='col-3')
+            ], className='row', style={'margin': 'auto'})
+        ], className='p-3', style={'display': 'none'}, id='clusters_panel'),
+        html.Div([
+            dbc.Container([
+                dbc.Row([
+                    dbc.Col(dcc.Dropdown(id='cluster_type_dropdown', style={'display': 'none'})),
+                    dbc.Col(dcc.Dropdown(id='num_passives_dropdown', style={'display': 'none'})),
+                    dbc.Col(dcc.Dropdown(id='item_level_dropdown', style={'display': 'none'}))
+                ])
             ])
-        ])
-    ]),
-    dcc.Graph(id='cluster_price_graph', style={'display': 'none'})
+        ]),
+        dcc.Graph(id='cluster_price_graph', style={'display': 'none'})
+    ], type='dot')
 ], className='m-5 px-5')
 
 
@@ -88,13 +96,14 @@ def layout():
     Input('pob_input', 'value')
 ])
 def update_page_with_new_build(pob_input: str):
-    pob_code = get_pob_code_from_url(pob_input)
-    if not pob_code:
-        pob_xml = read_pob_to_xml(pob_input)
-        if not pob_xml:
-            return [], None, [], None, [], [], [], [], [], [], [], []
-    else:
+    if validators.url(pob_input):
+        pob_code = get_pob_code_from_url(pob_input)
         pob_xml = read_pob_to_xml(pob_code)
+    else:
+        pob_xml = read_pob_to_xml(pob_input)
+
+    if not pob_xml:
+        return [], None, [], None, [], [], [], [], [], [], [], []
 
     build_uniques = get_uniques_from_xml(pob_xml)
     build_clusters = get_clusters_from_xml(pob_xml)
@@ -288,6 +297,7 @@ def update_cluster_price_graph(selected_type: str, selected_num_passives: str, s
     Output('cluster_type_dropdown', 'style'),
     Output('num_passives_dropdown', 'style'),
     Output('item_level_dropdown', 'style'),
+    Output('error_reading_pob', 'style'),
     Input('unique_price_graph', 'figure'),
     Input('cluster_price_graph', 'figure'),
     Input('unique_dropdown', 'options'),
@@ -296,12 +306,15 @@ def update_cluster_price_graph(selected_type: str, selected_num_passives: str, s
     Input('num_passives_dropdown', 'options'),
     Input('item_level_dropdown', 'options'),
     Input('unique_total_cost', 'children'),
-    Input('cluster_total_cost', 'children')
+    Input('cluster_total_cost', 'children'),
+    Input('pob_input', 'value'),
+    Input('character_level_ascendancy', 'children')
 )
 def update_visibility(unique_price_graph_figure: dict, cluster_price_graph_figure: dict, 
                       unique_dropdown_options: list, link_dropdown_options: list, cluster_type_dropdown_options: list,
                       num_passives_dropdown_options: list, item_level_dropdown_options: list,
-                      unique_total_cost_children: list, cluster_total_cost_children: list):
+                      unique_total_cost_children: list, cluster_total_cost_children: list, pob_input: str,
+                      character_level_ascendancy_div: list):
     unique_price_graph_style = {'display': 'block'}
     cluster_price_graph_style = {'display': 'block'}
     unique_dropdown_style = {'display': 'block'}
@@ -311,6 +324,7 @@ def update_visibility(unique_price_graph_figure: dict, cluster_price_graph_figur
     item_level_dropdown_style = {'display': 'block'}
     uniques_panel_style = {'display': 'block'}
     clusters_panel_style = {'display': 'block'}
+    error_reading_pob_style = {'color': 'red', 'display': 'block'}
 
     if not unique_price_graph_figure.get('data', []):
         unique_price_graph_style['display'] = 'none'
@@ -330,6 +344,10 @@ def update_visibility(unique_price_graph_figure: dict, cluster_price_graph_figur
         uniques_panel_style['display'] = 'none'
     if not cluster_total_cost_children:
         clusters_panel_style['display'] = 'none'
-    
-    return unique_price_graph_style, cluster_price_graph_style, unique_dropdown_style, link_dropdown_style, uniques_panel_style, clusters_panel_style, cluster_type_dropdown_style, num_passives_dropdown_style, item_level_dropdown_style
+    if character_level_ascendancy_div or not pob_input:
+        error_reading_pob_style['display'] = 'none'
+
+    return unique_price_graph_style, cluster_price_graph_style, unique_dropdown_style, \
+            link_dropdown_style, uniques_panel_style, clusters_panel_style, cluster_type_dropdown_style, \
+            num_passives_dropdown_style, item_level_dropdown_style, error_reading_pob_style
 

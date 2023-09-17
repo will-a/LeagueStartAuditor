@@ -5,8 +5,7 @@ Get historical information on a build's price early in the league to determine w
 ## How to install
 
 1. `pip install -r requirements.txt`
-2. Download Kalandra data dump from [here](https://poe.ninja/data)
-3. Unzip the data into the folder LeagueStartAuditor/data/Kalandra
+2. python3 setup.py
 
 ## Usage
 
