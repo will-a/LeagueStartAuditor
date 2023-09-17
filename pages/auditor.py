@@ -1,3 +1,4 @@
+import os
 import logging
 import numpy as np
 import pandas as pd
@@ -7,6 +8,10 @@ from pobutils import get_pob_code_from_url, read_pob_to_xml, get_uniques_from_xm
 
 
 register_page(__name__, path='/')
+
+if not os.path.isfile('data/Kalandra/Kalandra.items.csv'):
+    logging.error("Data file not found, exiting...")
+    exit(1)
 
 data = load_data('data/Kalandra/Kalandra.items.csv')
 data['Links'].fillna('None', inplace=True)
