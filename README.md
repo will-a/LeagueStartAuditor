@@ -2,13 +2,14 @@
 
 Get historical information on a build's price early in the league to determine whether or not it would be a good league starter.
 
-## How to install
-
-1. `pip install -r requirements.txt`
-2. python3 setup.py
-
 ## Usage
 
-python3 main.py
+Tested using Podman, replace `podman` with `docker` if using Docker.
 
-(Written and tested using Python 3.11)
+1. `git clone git@github.com:will-a/LeagueStartAuditor.git && cd LeagueStartAuditor`
+
+2. `podman build -t lsa .`
+
+3. `podman run -p 4444:4444 lsa`
+
+4. Open browser and go to http://localhost:4444

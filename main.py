@@ -1,8 +1,10 @@
 import logging
+import os
 from dash import Dash, html, page_registry, page_container
 
 logging.basicConfig(level=logging.INFO)
-LEAGUE = 'Crucible'
+LEAGUE = 'Affliction'
+ROOT_DIR = os.path.dirname(__file__)
 
 if __name__ == '__main__':
     app = Dash(__name__, use_pages=True)
@@ -22,4 +24,4 @@ if __name__ == '__main__':
         page_container
     ])
 
-    app.run_server(debug=True)
+    app.run(debug=True, host='0.0.0.0', port='4444')
