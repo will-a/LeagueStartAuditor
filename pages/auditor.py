@@ -7,19 +7,17 @@ import dash_bootstrap_components as dbc
 from dash import html, dcc, register_page, callback, Output, Input
 from pobutils import get_pob_code_from_url, read_pob_to_xml, get_uniques_from_xml, get_clusters_from_xml, get_stats_from_xml, load_data
 
-from main import LEAGUE
-
+from main import LEAGUE, ROOT_DIR
 
 register_page(__name__, path='/')
 
-if not os.path.isfile(f'data/{LEAGUE}/{LEAGUE}.items.csv'):
+if not os.path.isfile(os.path.join(ROOT_DIR, f'data/{LEAGUE}/{LEAGUE}.items.csv')):
     logging.error("Data file not found, exiting...")
     exit(1)
 
-data = load_data(f'data/{LEAGUE}/{LEAGUE}.items.csv')
-data['Links'].fillna('None', inplace=True)
+data = load_data(os.path.join(ROOT_DIR, f'data/{LEAGUE}/{LEAGUE}.items.csv'))
 try:
-    cluster_item_levels = pd.read_csv(f'data/{LEAGUE}/{LEAGUE}.clusterjewels.ids.csv')
+    cluster_item_levels = pd.read_csv(os.path.join(ROOT_DIR, f'data/{LEAGUE}/{LEAGUE}.clusterjewels.ids.csv'))
     data = data.merge(cluster_item_levels, on='Id', how='left')
 except FileNotFoundError as fnfe:
     logging.error("Could not read from item level CSV file")

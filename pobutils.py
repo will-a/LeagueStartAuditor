@@ -55,7 +55,10 @@ class ClusterJewel:
 
 def load_data(file_name: str) -> pd.DataFrame:
     try:
-        return pd.read_csv(file_name, delimiter=';', parse_dates=['Date'])
+        df = pd.read_csv(file_name, delimiter=';', parse_dates=['Date'], dtype={'Type': 'category', 'BaseType': 'category', 'Variant': 'category', 'Links': 'category', 'Confidence': 'category'}, usecols=['Date', 'Id', 'Type', 'Name', 'BaseType', 'Variant', 'Links', 'Value', 'Confidence'])
+        df['Links'] = df['Links'].cat.add_categories('None')
+        df['Links'].fillna('None', inplace=True)
+        return df
     except FileNotFoundError:
         return pd.DataFrame()
 
